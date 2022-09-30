@@ -3,12 +3,92 @@
  */
 package io.itudoben.lucene;
 
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.IOUtils;
+import org.apache.lucene.util.RamUsageEstimator;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.openjdk.jol.info.ClassLayout;
+import org.openjdk.jol.vm.VM;
+
 public class App {
   public String getGreeting() {
     return "Hello World!";
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
+    bitSet();
+  }
+
+  public static void bitSet() throws Exception {
+    DocIdSetIterator ite = DocIdSetIterator.all(5);
+    final BitSet bitSet = BitSet.of(ite, 10);
+    System.out.println(bitSet.getClass());
+    System.out.println(RamUsageEstimator.sizeOf(bitSet));
+
+    System.out.println(VM.current().details());
+    System.out.println(ClassLayout.parseClass(BitSet.class).toPrintable());
+    System.out.println(ClassLayout.parseInstance(bitSet).toPrintable());
+    System.out.println("done");
+  }
+
+  public static void someStuff() throws Exception {
     System.out.println(new App().getGreeting());
+
+    Analyzer analyzer = new StandardAnalyzer();
+
+    Path indexPath = Files.createTempDirectory("tempIndex");
+    Directory directory = FSDirectory.open(indexPath);
+    IndexWriterConfig config = new IndexWriterConfig(analyzer);
+    IndexWriter iwriter = new IndexWriter(directory, config);
+    Document doc = new Document();
+    String text = "This is the text to be indexed.";
+    doc.add(new Field("fieldname", text, TextField.TYPE_STORED));
+    iwriter.addDocument(doc);
+    iwriter.close();
+
+    DirectoryReader ireader = null;
+    try {
+      // Now search the index:
+      ireader = DirectoryReader.open(directory);
+      IndexSearcher isearcher = new IndexSearcher(ireader);
+      // Parse a simple query that searches for "text":
+      QueryParser parser = new QueryParser("fieldname", analyzer);
+      Query query = parser.parse("text");
+      ScoreDoc[] hits = isearcher.search(query, 10).scoreDocs;
+      if (1 != hits.length) {
+        throw new IllegalArgumentException("value different than 1: " + hits.length);
+      }
+
+      // Iterate through the results:
+      for (int i = 0; i < hits.length; i++) {
+        Document hitDoc = isearcher.doc(hits[i].doc);
+        if (!text.equals(hitDoc.get("fieldname"))) {
+          throw new IllegalArgumentException(String.format("value different than {}: {}", text, hits.length));
+        }
+      }
+    }
+    finally {
+      ireader.close();
+      directory.close();
+      IOUtils.rm(indexPath);
+    }
   }
 }
