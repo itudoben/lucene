@@ -22,6 +22,8 @@ import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.RamUsageEstimator;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -34,7 +36,52 @@ public class App {
   }
 
   public static void main(String[] args) throws Exception {
-    bitSet();
+    runInputStream();
+  }
+
+  static void runInputStream() throws Exception {
+    InputStream is = new InputStream() {
+      int cursor = 0;
+      byte[] dataToReadFrom = "ABXY".getBytes();
+
+      @Override
+      public int read() throws IOException {
+        if (cursor < dataToReadFrom.length) {
+          System.out.printf("reading byte #%d,\tbyte: %d,\tlength: %d \n", cursor, dataToReadFrom[cursor], dataToReadFrom.length);
+          int v = dataToReadFrom[cursor] & 0xFF;
+          cursor += 1;
+          return v;
+        }
+        else {
+          return -1;
+        }
+      }
+    };
+
+    boolean assertOn = false;
+    // *assigns* true if assertions are on.
+    assert assertOn = true;
+
+    System.out.printf("Is assertion enabled: %s\n", assertOn);
+
+    byte[] bytes = new byte[3];
+    printScreen(bytes, 0);
+    readAndPrintOnScreen(is, bytes, 3);
+    readAndPrintOnScreen(is, bytes, 4);
+    readAndPrintOnScreen(is, bytes, -1);
+  }
+
+  private static void readAndPrintOnScreen(InputStream is, byte[] bytes, final int expectedBytesRead) throws IOException {
+    int bytesRead = is.read(bytes);
+    assert bytesRead == expectedBytesRead: String.format("Expected %d bytes read and got %d", expectedBytesRead, bytesRead);
+    printScreen(bytes, expectedBytesRead);
+  }
+
+  private static void printScreen(byte[] bytes, Object expectedBytesRead) {
+    for (byte aByte : bytes) {
+      System.out.printf("char %s, expected bytes read: %d\n", new String(new byte[]{aByte}), expectedBytesRead);
+    }
+    System.out.println("\n");
   }
 
   public static void bitSet() throws Exception {

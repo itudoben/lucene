@@ -43,6 +43,10 @@ dependencies {
 application {
   // Define the main class for the application.
   mainClass = 'io.itudoben.lucene.App'
+
+  applicationDefaultJvmArgs = [
+    "-enableassertions"
+  ]
 }
 
 tasks.named('test') {
